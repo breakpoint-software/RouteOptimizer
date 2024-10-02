@@ -176,10 +176,11 @@ namespace RouteOptimizer.Controllers
                     for (int i = 0; i < route.Visits.Count; i++)
                     {
                         long id = payload.Model.Shipments[route.Visits[i].ShipmentIndex].ExternalId;
+                        payload.Model.Shipments[route.Visits[i].ShipmentIndex].WalkOrder = i;
                         UpdateWalkOrder(id, i);
                     }
 
-                    return Ok(apiResponse);
+                    return Ok(payload.Model.Shipments.OrderBy(e => e.WalkOrder).ToArray());
                 }
                 catch (Exception ex)
                 {

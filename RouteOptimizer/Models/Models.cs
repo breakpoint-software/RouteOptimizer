@@ -70,6 +70,8 @@ namespace RouteOptimizer.Models
     {
         [JsonIgnore]
         public long ExternalId { get; set; }
+        [JsonIgnore]
+        public long WalkOrder { get; set; }
         public Delivery[] Deliveries { get; internal set; }
         public Delivery[] Pickups { get; internal set; }
     }
