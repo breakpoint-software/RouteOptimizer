@@ -24,7 +24,7 @@ namespace RouteOptimizer.Controllers
             this.googleService = googleService;
         }
 
-        [HttpGet("optimize-option-2")]
+        [HttpGet("compute-route-2")]
         public async Task<IActionResult> TestCredentials()
         {
             string query = "SELECT top 10 * FROM FloridaVotersDistinctAddresses";
@@ -127,17 +127,21 @@ namespace RouteOptimizer.Controllers
                 var str = await response.Content.ReadAsStringAsync();
 
                 var data = JsonConvert.DeserializeObject<RouteResponse>(await response.Content.ReadAsStringAsync());
-                var r = data.routes[0].optimizedIntermediateWaypointIndex.Select((element, index) => new
+                int i = 0;
+                foreach (var item in data.routes[0].optimizedIntermediateWaypointIndex)
                 {
-                    Deliver = addresses[element]
-                });
+
+                    addresses[item].WalkOrder = i++;
+                }
+
+                var r = addresses.OrderBy(e => e.WalkOrder).ToList();
 
                 return Ok(r);
             }
         }
 
 
-        [HttpGet()]
+        [HttpGet("optimize-tours-1")]
         public async Task<IActionResult> OptimizeRoute([FromQuery] string gToken)
         {
             CreateRequestPayload();
