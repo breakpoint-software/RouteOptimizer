@@ -1,9 +1,11 @@
+using Google.Maps.RouteOptimization.V1;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using RouteOptimizer.Models;
 using System.Data;
+using System.Text;
 
 namespace RouteOptimizer.Controllers
 {
@@ -13,6 +15,7 @@ namespace RouteOptimizer.Controllers
     {
         private readonly ILogger<RouteOptimizer> _logger;
         private readonly GoogleService googleService;
+        private object originAddr;
         const string connectionString = "data source=Breakpoint\\SQLEXPRESS;initial catalog=routeOptimizer;trusted_connection=true;TrustServerCertificate=True";
 
         public RouteOptimizer(ILogger<RouteOptimizer> logger, GoogleService googleService)
@@ -20,6 +23,119 @@ namespace RouteOptimizer.Controllers
             _logger = logger;
             this.googleService = googleService;
         }
+
+        [HttpGet("optimize-option-2")]
+        public async Task<IActionResult> TestCredentials()
+        {
+            string query = "SELECT top 10 * FROM FloridaVotersDistinctAddresses";
+            var addresses = new List<Address>();
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                connection.Open();
+
+                SqlDataReader reader = command.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    addresses.Add(new Address()
+                    {
+                        ID = (Int16)reader["ID"],
+                        CleanAddress = (string)reader["CleanAddress"],
+                        Lat = Convert.ToDouble(reader["Lat"]),
+                        Lon = Convert.ToDouble(reader["Lon"]),
+                        ResidenceCity = (string)reader["Residence_City_USPS"],
+                        ResidenceState = (string)reader["Residence_State"],
+                        WalkOrder = 0,
+                    });
+                }
+            }
+
+            string apiKey = "AIzaSyCHeJyeuixXnqdWyn5018h7DEclejyk9u8";
+
+
+            var origin = new Waypoint
+            {
+                Location = new Google.Maps.RouteOptimization.V1.Location
+                {
+                    LatLng = new Google.Type.LatLng
+                    {
+                        Latitude = addresses[0].Lat,
+                        Longitude = addresses[0].Lon,
+                    }
+                }
+            };
+
+            var intermediates = new List<Waypoint>();
+            var count = addresses.Count;
+
+            var request = new
+            {
+                origin = new
+                {
+                    Location = new
+                    {
+                        LatLng = new
+                        {
+                            Latitude = addresses[0].Lat,
+                            Longitude = addresses[0].Lon,
+                        }
+                    }
+                },
+                destination = new
+                {
+                    Location = new
+                    {
+                        LatLng = new
+                        {
+                            Latitude = addresses[0].Lat,
+                            Longitude = addresses[0].Lon,
+                        }
+                    }
+                },
+                optimizeWaypointOrder = true,
+                travelMode = "WALK",
+                intermediates = addresses.Select(e => new
+                {
+                    Location = new
+                    {
+                        LatLng = new
+                        {
+                            Latitude = e.Lat,
+                            Longitude = e.Lon,
+                        }
+                    }
+                }).ToList()
+            };
+
+            var requestBody = JsonConvert.SerializeObject(request, new JsonSerializerSettings
+            {
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            });
+
+
+            using (HttpClient client = new HttpClient())
+            {
+                string url = $"https://routes.googleapis.com/directions/v2:computeRoutes?key={apiKey}";
+
+                var requestContent = new StringContent(requestBody, Encoding.UTF8, "application/json");
+                client.DefaultRequestHeaders.Add("X-Goog-FieldMask", "routes.optimizedIntermediateWaypointIndex");
+
+                HttpResponseMessage response = await client.PostAsync(url, requestContent);
+
+                var str = await response.Content.ReadAsStringAsync();
+
+                var data = JsonConvert.DeserializeObject<RouteResponse>(await response.Content.ReadAsStringAsync());
+                var r = data.routes[0].optimizedIntermediateWaypointIndex.Select((element, index) => new
+                {
+                    Deliver = addresses[element]
+                });
+
+                return Ok(r);
+            }
+        }
+
 
         [HttpGet()]
         public async Task<IActionResult> OptimizeRoute([FromQuery] string gToken)
@@ -93,7 +209,7 @@ namespace RouteOptimizer.Controllers
         {
             var model = new Model()
             {
-                Shipments = new List<Shipment>(),
+                Shipments = new List<Models.Shipment>(),
 
             };
             DataTable dataTable = new DataTable();
@@ -116,20 +232,20 @@ namespace RouteOptimizer.Controllers
             {
                 if (model.Vehicles == null)
                 {
-                    model.Vehicles = new Vehicle()
+                    model.Vehicles = new Models.Vehicle()
                     {
-                        StartLocation = new Location { Latitude = Convert.ToDouble(row["Lat"]), Longitude = Convert.ToDouble(row["Lon"]) }
+                        StartLocation = new Models.Location { Latitude = Convert.ToDouble(row["Lat"]), Longitude = Convert.ToDouble(row["Lon"]) }
                     };
                 }
 
                 if (row["Lat"] != DBNull.Value)
                 {
                     model.Shipments.Add(
-                    new Shipment
+                    new Models.Shipment
                     {
                         ExternalId = Convert.ToInt64(row["Id"]),
                         Deliveries = new Delivery[] {
-                         new Delivery{ ArrivalLocation = new Location { Latitude = Convert.ToDouble(row["Lat"]), Longitude = Convert.ToDouble(row["Lon"]) } }
+                         new Delivery{ ArrivalLocation = new Models.Location { Latitude = Convert.ToDouble(row["Lat"]), Longitude = Convert.ToDouble(row["Lon"]) } }
                         }
                     });
                 }
