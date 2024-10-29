@@ -150,7 +150,7 @@ namespace RouteOptimizer.Controllers
 
             using (HttpClient client = new HttpClient())
             {
-                HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Post, "https://routeoptimization.googleapis.com/v1/projects/825295231208:optimizeTours");
+                HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Post, "https://routeoptimization.googleapis.com/v1/projects/575974518869:optimizeTours");
                 requestMessage.Headers.Add("Accept", "application/json");
                 requestMessage.Headers.Add("Authorization", token);
 
@@ -177,10 +177,11 @@ namespace RouteOptimizer.Controllers
                     {
                         long id = payload.Model.Shipments[route.Visits[i].ShipmentIndex].ExternalId;
                         payload.Model.Shipments[route.Visits[i].ShipmentIndex].WalkOrder = i;
+                        route.Visits[i].Shipment = payload.Model.Shipments[route.Visits[i].ShipmentIndex];
                         UpdateWalkOrder(id, i);
                     }
 
-                    return Ok(payload.Model.Shipments.OrderBy(e => e.WalkOrder).ToArray());
+                    return Ok(route.Visits.Select(e => e.Shipment));
                 }
                 catch (Exception ex)
                 {
@@ -215,7 +216,7 @@ namespace RouteOptimizer.Controllers
             var model = new Model()
             {
                 Shipments = new List<Models.Shipment>(),
-
+                GlobalDurationCostPerHour = 100.0m
             };
             DataTable dataTable = new DataTable();
 
@@ -249,13 +250,14 @@ namespace RouteOptimizer.Controllers
                     new Models.Shipment
                     {
                         ExternalId = Convert.ToInt64(row["Id"]),
+                        CleanAddress = row["CleanAddress"].ToString(),
                         Deliveries = new Delivery[] {
                          new Delivery{ ArrivalLocation = new Models.Location { Latitude = Convert.ToDouble(row["Lat"]), Longitude = Convert.ToDouble(row["Lon"]) } }
                         }
                     });
                 }
             }
-            return new RouteOptimizerRequest { Model = model };
+            return new RouteOptimizerRequest { Model = model, SearchMode = "CONSUME_ALL_AVAILABLE_TIME" };
         }
     }
 

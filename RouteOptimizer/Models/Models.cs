@@ -59,6 +59,7 @@ namespace RouteOptimizer.Models
     public class Visit
     {
         public int ShipmentIndex { get; set; }
+        public Shipment Shipment { get; internal set; }
     }
 
     public class Delivery
@@ -72,14 +73,18 @@ namespace RouteOptimizer.Models
         public long ExternalId { get; set; }
         [JsonIgnore]
         public long WalkOrder { get; set; }
+        [JsonIgnore]
+        public string? CleanAddress { get; internal set; }
         public Delivery[] Deliveries { get; internal set; }
         public Delivery[] Pickups { get; internal set; }
+
     }
 
     public class Model
     {
         public List<Shipment> Shipments { get; set; }
         public Vehicle Vehicles { get; set; }
+        public decimal GlobalDurationCostPerHour { get; internal set; }
     }
 
     public class Vehicle
@@ -97,5 +102,6 @@ namespace RouteOptimizer.Models
     public class RouteOptimizerRequest
     {
         public Model Model { get; set; }
+        public string SearchMode { get; internal set; }
     }
 }
